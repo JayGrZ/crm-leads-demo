@@ -106,10 +106,23 @@ if seccion == "👥 Clientes":
         )
 
         if st.button("💾 Sincronizar Cambios"):
-            for i in range(len(edited)):
-                actualizar_estado(int(ids_tabla[i]), str(edited.iloc[i]["estado"]))
-            st.success("¡Base de datos actualizada!")
-            st.rerun()
+            # 1. Comparamos solo las columnas necesarias para ver cambios
+            # Comparamos la columna 'estado' del editor con la del DataFrame original
+            cambios_mask = edited["estado"] != df["estado"]
+            cambios = edited[cambios_mask]
+
+            if not cambios.empty:
+                for idx, row in cambios.iterrows():
+                    try:
+                        # Usamos el ID real de la fila que cambió
+                        actualizar_estado(int(ids_tabla[idx]), str(row["estado"]))
+                    except Exception as e:
+                        st.error(f"Error al actualizar ID {ids_tabla[idx]}: {e}")
+                
+                st.success(f"✅ ¡{len(cambios)} cambios guardados con éxito!")
+                st.rerun()
+            else:
+                st.info("No se detectaron cambios para guardar.")
     else:
         st.info(f"No hay registros para {categoria}")
 else:
