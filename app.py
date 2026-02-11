@@ -87,17 +87,19 @@ if seccion == "👥 Clientes":
         df_filtrado = df_filtrado.sort_values(by="poblacion", ascending=False)
     
     if not df_filtrado.empty:
-        # 2. Configuración de columnas (Ajustamos anchos y visibilidad)
+        # 2. Configuración de columnas (Centrado y Ajuste de tamaños)
         column_config = {
             "id": None, 
-            "poblacion": st.column_config.NumberColumn("Pop.", format="%d", width="small", disabled=True),
             "nombre": st.column_config.TextColumn("Nombre", width="medium", disabled=True),
-            "telefono": st.column_config.TextColumn("Teléfono", width="small", disabled=True), # <-- Más estrecho
+            "poblacion": st.column_config.NumberColumn("Pop.", format="%d", width="small", disabled=True),
+            "telefono": st.column_config.TextColumn("Teléfono", width="small", disabled=True),
             "estado": st.column_config.SelectboxColumn("Estado", width="medium", options=OPCIONES_ESTADO, required=True),
-            "comentarios": st.column_config.TextColumn("Notas / Comentarios", width="large", disabled=False), # <-- A la derecha
+            "comentarios": st.column_config.TextColumn("Notas", width="medium", disabled=False), # <-- Ahora 'medium'
         }
         
-        # 3. Mostramos la tabla (El orden en 'column_order' define la posición visual)
+        # 3. Mostramos la tabla centrada
+        # Nota: 'use_container_width=True' hace que la tabla ocupe todo el ancho, 
+        # y el CSS inyectado arriba se encarga de la estética.
         edited_df = st.data_editor(
             df_filtrado,
             column_order=["nombre", "poblacion", "telefono", "estado", "comentarios"], 
@@ -107,10 +109,14 @@ if seccion == "👥 Clientes":
             key="editor_leads"
         )
 
-        if st.button("💾 Sincronizar Cambios"):
-            # Detectamos cambios en estado o comentarios
+        # Centramos el botón de sincronizar visualmente
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            boton = st.button("💾 Sincronizar Cambios", use_container_width=True)
+
+        if boton:
             cambios_estado = edited_df["estado"] != df_filtrado["estado"]
-            cambios_comentarios = edited_df["comentarios"] != df_filtrado["comentarios"]
+            cambios_comentarios = edited_df["comentarios"] != df_filtrado.get("comentarios", pd.Series([""]*len(df_filtrado)))
             df_diff = edited_df[cambios_estado | cambios_comentarios]
             
             if not df_diff.empty:
@@ -118,7 +124,7 @@ if seccion == "👥 Clientes":
                     try:
                         conn.table("negocios").update({
                             "estado": str(row["estado"]),
-                            "comentarios": str(row["comentarios"])
+                            "comentarios": str(row.get("comentarios", ""))
                         }).eq("id", int(row["id"])).execute()
                     except Exception as e:
                         st.error(f"Error en ID {row['id']}: {e}")
