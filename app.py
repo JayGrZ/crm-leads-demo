@@ -87,26 +87,27 @@ if seccion == "👥 Clientes":
         df_filtrado = df_filtrado.sort_values(by="poblacion", ascending=False)
     
     if not df_filtrado.empty:
-        # 2. Configuración de columnas (Centrado y Ajuste de tamaños)
+        # 1. Aseguramos que el índice sea limpio antes de editar
+        df_filtrado = df_filtrado.reset_index(drop=True)
+
+        # 2. Configuración de columnas
         column_config = {
             "id": None, 
             "nombre": st.column_config.TextColumn("Nombre", width="medium", disabled=True),
-            "poblacion": st.column_config.NumberColumn("Pop.", format="%d", width="small", disabled=True),
-            "telefono": st.column_config.TextColumn("Teléfono", width="small", disabled=True),
-            "estado": st.column_config.SelectboxColumn("Estado", width="medium", options=OPCIONES_ESTADO, required=True),
-            "comentarios": st.column_config.TextColumn("Notas", width="medium", disabled=False), # <-- Ahora 'medium'
+            "poblacion": st.column_config.NumberColumn("Pop.", format="%d", width="small", disabled=True, alignment="center"),
+            "telefono": st.column_config.TextColumn("Teléfono", width="small", disabled=True, alignment="center"),
+            "estado": st.column_config.SelectboxColumn("Estado", width="medium", options=OPCIONES_ESTADO, required=True, alignment="center"),
+            "comentarios": st.column_config.TextColumn("Notas", width="medium", disabled=False, alignment="center"), 
         }
         
-        # 3. Mostramos la tabla centrada
-        # Nota: 'use_container_width=True' hace que la tabla ocupe todo el ancho, 
-        # y el CSS inyectado arriba se encarga de la estética.
+        # 3. EL TRUCO: Quitamos la capacidad de reordenar manualmente para que se quede fijo
         edited_df = st.data_editor(
             df_filtrado,
             column_order=["nombre", "poblacion", "telefono", "estado", "comentarios"], 
             column_config=column_config,
             use_container_width=True,
             hide_index=True,
-            key="editor_leads"
+            key="editor_leads"  # Esta clave debe ser fija
         )
 
         # Centramos el botón de sincronizar visualmente
