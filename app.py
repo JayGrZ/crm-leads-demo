@@ -65,18 +65,12 @@ def normalizar_estado(val):
 try:
     df_full = cargar_negocios()
 except Exception as e:
-    st.error(f"Error al cargar datos desde Supabase: {e}")
+    st.error(f"Error al cargar datos: {e}")
     st.stop()
 
 if df_full.empty:
     st.warning("La base de datos está vacía.")
     st.stop()
-
-# Limpieza rápida de datos
-for col in ["barrio", "categoria", "estado"]:
-    df_full[col] = df_full.get(col, pd.Series(dtype=object)).fillna("").astype(str)
-
-df_full["estado"] = df_full["estado"].map(normalizar_estado)
 
 # --- Interfaz ---
 st.sidebar.markdown("## Menú")
@@ -86,43 +80,45 @@ if seccion == "👥 Clientes":
     st.markdown("## Gestión de Leads")
     categoria = st.radio("Categoría", options=CATEGORIAS, horizontal=True, label_visibility="collapsed")
     
-    df = df_full[df_full["categoria"] == categoria].copy()
+    # Filtramos el DataFrame
+    df_filtrado = df_full[df_full["categoria"] == categoria].copy()
     
-    if not df.empty:
-        ids_tabla = df["id"].tolist()
+    if not df_filtrado.empty:
         column_config = {
+            "id": None, # Ocultamos el ID para que no moleste
             "nombre": st.column_config.TextColumn("Nombre", width="large", disabled=True),
             "telefono": st.column_config.TextColumn("Teléfono", width="large", disabled=True),
             "estado": st.column_config.SelectboxColumn("Estado", width="medium", options=OPCIONES_ESTADO, required=True),
         }
         
-        edited = st.data_editor(
-            df,
-            column_order=["nombre", "telefono", "barrio", "estado"],
+        # El data_editor ahora devuelve solo las filas cambiadas si usamos num_rows="fixed"
+        edited_df = st.data_editor(
+            df_filtrado,
+            column_order=["id", "nombre", "telefono", "barrio", "estado"],
             column_config=column_config,
             use_container_width=True,
             hide_index=True,
-            key="editor"
+            key="editor_leads"
         )
 
         if st.button("💾 Sincronizar Cambios"):
-            # 1. Comparamos solo las columnas necesarias para ver cambios
-            # Comparamos la columna 'estado' del editor con la del DataFrame original
-            cambios_mask = edited["estado"] != df["estado"]
-            cambios = edited[cambios_mask]
-
-            if not cambios.empty:
-                for idx, row in cambios.iterrows():
+            # Comparamos el original filtrado con el editado
+            # Buscamos filas donde el estado sea diferente
+            df_diff = edited_df[edited_df["estado"] != df_filtrado["estado"]]
+            
+            if not df_diff.empty:
+                for _, row in df_diff.iterrows():
                     try:
-                        # Usamos el ID real de la fila que cambió
-                        actualizar_estado(int(ids_tabla[idx]), str(row["estado"]))
+                        # Usamos directamente el ID de la fila
+                        actualizar_estado(int(row["id"]), str(row["estado"]))
                     except Exception as e:
-                        st.error(f"Error al actualizar ID {ids_tabla[idx]}: {e}")
+                        st.error(f"Error en ID {row['id']}: {e}")
                 
-                st.success(f"✅ ¡{len(cambios)} cambios guardados con éxito!")
+                st.success(f"✅ {len(df_diff)} cambios guardados.")
+                st.cache_resource.clear() # Limpiamos caché para forzar recarga
                 st.rerun()
             else:
-                st.info("No se detectaron cambios para guardar.")
+                st.info("No hay cambios detectados.")
     else:
         st.info(f"No hay registros para {categoria}")
 else:
