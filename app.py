@@ -81,26 +81,25 @@ if seccion == "👥 Clientes":
     categoria = st.radio("Categoría", options=CATEGORIAS, horizontal=True, label_visibility="collapsed")
     
     # 1. Filtramos y ORDENAMOS por población (Mayor a Menor)
+    # Asegúrate de que la columna en Supabase se llame 'poblacion'
     df_filtrado = df_full[df_full["categoria"] == categoria].copy()
     if "poblacion" in df_filtrado.columns:
         df_filtrado["poblacion"] = pd.to_numeric(df_filtrado["poblacion"], errors="coerce").fillna(0)
         df_filtrado = df_filtrado.sort_values(by="poblacion", ascending=False)
     
     if not df_filtrado.empty:
-        # 2. Configuración de columnas (Añadimos comentarios aquí)
         column_config = {
             "id": None, 
             "poblacion": st.column_config.NumberColumn("Población", format="%d", disabled=True),
-            "nombre": st.column_config.TextColumn("Nombre", width="medium", disabled=True),
-            "telefono": st.column_config.TextColumn("Teléfono", width="small", disabled=True),
-            "comentarios": st.column_config.TextColumn("Comentarios", width="large", disabled=False), # <-- Visible y editable
+            "nombre": st.column_config.TextColumn("Nombre", width="large", disabled=True),
+            "telefono": st.column_config.TextColumn("Teléfono", width="large", disabled=True),
             "estado": st.column_config.SelectboxColumn("Estado", width="medium", options=OPCIONES_ESTADO, required=True),
         }
         
-        # 3. Mostramos la tabla con el nuevo orden de columnas
+        # Mostramos la tabla (el orden es fijo por el sort_values de arriba)
         edited_df = st.data_editor(
             df_filtrado,
-            column_order=["id", "nombre", "poblacion", "telefono", "comentarios", "estado"], # <-- Comentarios incluidos
+            column_order=["id", "nombre", "poblacion", "telefono", "barrio", "estado"],
             column_config=column_config,
             use_container_width=True,
             hide_index=True,
@@ -108,23 +107,17 @@ if seccion == "👥 Clientes":
         )
 
         if st.button("💾 Sincronizar Cambios"):
-            # Comparamos cambios en estado O en comentarios
-            cambios_estado = edited_df["estado"] != df_filtrado["estado"]
-            cambios_comentarios = edited_df["comentarios"] != df_filtrado["comentarios"]
-            df_diff = edited_df[cambios_estado | cambios_comentarios]
+            # Comparamos estados para solo subir lo necesario
+            df_diff = edited_df[edited_df["estado"] != df_filtrado["estado"]]
             
             if not df_diff.empty:
                 for _, row in df_diff.iterrows():
                     try:
-                        # Actualizamos ambos campos en Supabase
-                        conn.table("negocios").update({
-                            "estado": str(row["estado"]),
-                            "comentarios": str(row["comentarios"])
-                        }).eq("id", int(row["id"])).execute()
+                        actualizar_estado(int(row["id"]), str(row["estado"]))
                     except Exception as e:
                         st.error(f"Error en ID {row['id']}: {e}")
                 
-                st.success(f"✅ {len(df_diff)} registros actualizados.")
+                st.success(f"✅ {len(df_diff)} cambios guardados.")
                 st.cache_resource.clear() 
                 st.rerun()
             else:
