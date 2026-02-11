@@ -80,21 +80,26 @@ if seccion == "👥 Clientes":
     st.markdown("## Gestión de Leads")
     categoria = st.radio("Categoría", options=CATEGORIAS, horizontal=True, label_visibility="collapsed")
     
-    # Filtramos el DataFrame
+    # 1. Filtramos y ORDENAMOS por población (Mayor a Menor)
+    # Asegúrate de que la columna en Supabase se llame 'poblacion'
     df_filtrado = df_full[df_full["categoria"] == categoria].copy()
+    if "poblacion" in df_filtrado.columns:
+        df_filtrado["poblacion"] = pd.to_numeric(df_filtrado["poblacion"], errors="coerce").fillna(0)
+        df_filtrado = df_filtrado.sort_values(by="poblacion", ascending=False)
     
     if not df_filtrado.empty:
         column_config = {
-            "id": None, # Ocultamos el ID para que no moleste
+            "id": None, 
+            "poblacion": st.column_config.NumberColumn("Población", format="%d", disabled=True),
             "nombre": st.column_config.TextColumn("Nombre", width="large", disabled=True),
             "telefono": st.column_config.TextColumn("Teléfono", width="large", disabled=True),
             "estado": st.column_config.SelectboxColumn("Estado", width="medium", options=OPCIONES_ESTADO, required=True),
         }
         
-        # El data_editor ahora devuelve solo las filas cambiadas si usamos num_rows="fixed"
+        # Mostramos la tabla (el orden es fijo por el sort_values de arriba)
         edited_df = st.data_editor(
             df_filtrado,
-            column_order=["id", "nombre", "telefono", "barrio", "estado"],
+            column_order=["id", "nombre", "poblacion", "telefono", "barrio", "estado"],
             column_config=column_config,
             use_container_width=True,
             hide_index=True,
@@ -102,24 +107,20 @@ if seccion == "👥 Clientes":
         )
 
         if st.button("💾 Sincronizar Cambios"):
-            # Comparamos el original filtrado con el editado
-            # Buscamos filas donde el estado sea diferente
+            # Comparamos estados para solo subir lo necesario
             df_diff = edited_df[edited_df["estado"] != df_filtrado["estado"]]
             
             if not df_diff.empty:
                 for _, row in df_diff.iterrows():
                     try:
-                        # Usamos directamente el ID de la fila
                         actualizar_estado(int(row["id"]), str(row["estado"]))
                     except Exception as e:
                         st.error(f"Error en ID {row['id']}: {e}")
                 
                 st.success(f"✅ {len(df_diff)} cambios guardados.")
-                st.cache_resource.clear() # Limpiamos caché para forzar recarga
+                st.cache_resource.clear() 
                 st.rerun()
             else:
                 st.info("No hay cambios detectados.")
     else:
         st.info(f"No hay registros para {categoria}")
-else:
-    st.write("Panel de administración.")
