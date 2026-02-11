@@ -1,16 +1,25 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 from st_supabase_connection import SupabaseConnection
 
 # Configuración de página
 st.set_page_config(page_title="CRM Lead Gen", page_icon="👥", layout="wide")
 
-# --- Conexión Blindada ---
+# --- CONEXIÓN BLINDADA ---
 try:
-    # Intenta conectar usando los Secrets de Streamlit Cloud
-    conn = st.connection("supabase", type=SupabaseConnection)
+    # Intenta leer de la sección [connections.supabase] o directamente de los secretos raíz
+    if "connections" in st.secrets and "supabase" in st.secrets["connections"]:
+        s_url = st.secrets["connections"]["supabase"]["url"]
+        s_key = st.secrets["connections"]["supabase"]["key"]
+    else:
+        # Por si los pusiste sin el encabezado [connections.supabase]
+        s_url = st.secrets["SUPABASE_URL"]
+        s_key = st.secrets["SUPABASE_KEY"]
+    
+    conn = st.connection("supabase", type=SupabaseConnection, url=s_url, key=s_key)
 except Exception as e:
-    st.error(f"Error de configuración: Asegúrate de haber puesto los 'Secrets' en el panel de Streamlit.")
+    st.error(f"Error crítico de conexión. Revisa los Secrets de Streamlit.")
+    st.info("Asegúrate de que en el panel de Secrets de Streamlit estén definidos SUPABASE_URL y SUPABASE_KEY")
     st.stop()
 
 # --- Estilo Midnight ---
