@@ -3,6 +3,16 @@ CRM Lead Gen - Estilo Midnight. Navegación lateral sin botón azul, segmented c
 """
 import pandas as pd
 import streamlit as st
+from st_supabase_connection import SupabaseConnection
+
+# ESTO ES LO IMPORTANTE:
+# Si existen los secretos de Streamlit, los usa. 
+# Si no, busca el .env (para cuando estés en local)
+url = st.secrets["connections"]["supabase"]["url"]
+key = st.secrets["connections"]["supabase"]["key"]
+
+# Luego inicializas la conexión
+conn = st.connection("supabase", type=SupabaseConnection)
 
 from test_conexion import get_supabase_client
 
